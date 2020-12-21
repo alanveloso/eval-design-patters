@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""federation aval: Realize evalution federation design patter"""
+"""hierarchy aval: Realize evalution hierarchy design patter"""
 
 __author__      = "Alan Veloso"
 __copyright__   = "Copyright (c) 2020 Alan Veloso"
@@ -22,57 +22,65 @@ from networkx.drawing.nx_agraph import write_dot, graphviz_layout
 sys.path.insert(1, './lib')
 from hierarchy_pos import hierarchy_pos
 
-@py_random_state(1)
-def random_hierachy(n, seed=None):
-    """Returns a uniformly random tree on `n` nodes.
+def  random_hierarchy(num_nodes):
+    return nx.generators.trees.random_tree(num_nodes)
 
-    Parameters
-    ----------
-    n : int
-        A positive integer representing the number of nodes in the tree.
-    seed : integer, random_state, or None (default)
-        Indicator of random number generation state.
-        See :ref:`Randomness<randomness>`.
-
-    Returns
-    -------
-    NetworkX graph
-        A tree, given as an undirected graph, whose nodes are numbers in
-        the set {0, …, *n* - 1}.
-
-    Raises
-    ------
-    NetworkXPointlessConcept
-        If `n` is zero (because the null graph is not a tree).
-
-    Notes
-    -----
-    The current implementation of this function generates a uniformly
-    random Prüfer sequence then converts that to a tree via the
-    :func:`~networkx.from_prufer_sequence` function. Since there is a
-    bijection between Prüfer sequences of length *n* - 2 and trees on
-    *n* nodes, the tree is chosen uniformly at random from the set of
-    all trees on *n* nodes.
-
-    """
-    if n == 0:
-        raise nx.NetworkXPointlessConcept("the null graph is not a tree")
-    # Cannot create a Prüfer sequence unless `n` is at least two.
-    if n == 1:
-        return nx.empty_graph(1)
-    sequence = [seed.choice(range(n)) for i in range(n - 2)]
-    return nx.from_prufer_sequence(sequence)
-
+def coupling_factor (G):
+    return float(len(G.edges)/(pow(len(G.nodes),2) - len(G.nodes)))
 
 def main(graphic = True):
-    plt.clf()
-    G = random_hierachy(10)
-    print(G)
+    amt_samples = 30
+    samples_list = list()
+    max_num_class = 10
+    name = 'hierarchy'
+    data_path = './data'
+    plot_path = './plots/{}'.format(name)
+
+
+    if (graphic == True):
+        try:
+            os.makedirs(plot_path)
+        except OSError:
+            print ("Creation of the directory %s failed" % plot_path)
+        else: 
+            print ("Successfully created the directory %s " % plot_path)
+
+    while (len(samples_list) < amt_samples):
+        num_nodes = random.randint(2, max_num_class)
+        hierarchy = random_hierarchy(num_nodes)
+
+        check = True
+        for i in range(len(samples_list)):
+            if (nx.is_isomorphic(hierarchy, samples_list[i])):
+                check = False
+                break
+
+        if not check:
+            continue
+        
+        samples_list.append(hierarchy)
+
+        if (graphic == True):
+            plt.clf()
+            nx.draw(
+            hierarchy, 
+            pos = hierarchy_pos(hierarchy,1), 
+            with_labels=True
+            )
+            filename = '{}/{}-{}.png'.format(plot_path, name,len(samples_list))
+            plt.savefig(filename)
     
-    nx.draw(G, 
-    pos = hierarchy_pos(G,1), 
-    with_labels=True)
-    plt.savefig('hierarchy.png')
+    try:
+        os.mkdir(data_path)
+    except OSError:
+        print ("Creation of the directory %s failed" % data_path)
+    else: 
+        print ("Successfully created the directory %s " % data_path)
+    
+    with open('{}/{}.csv'.format(data_path, name), 'w') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["num", "num_classes", "num_clients", "coupling_factor"])
+        [writer.writerow([i+1, len(samples_list[i].nodes), len(samples_list[i].edges), coupling_factor(samples_list[i])]) for i in range(len(samples_list))]
     
 
 if __name__ == "__main__":

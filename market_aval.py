@@ -99,45 +99,63 @@ def random_market(num_buyer, num_seller, p, seed=None):
 def coupling_factor (G):
     return float(len(G.edges)/(pow(len(G.nodes),2) - len(G.nodes)))
 
-def main(graphic = False):
+def main(graphic = True):
     amt_samples = 30
-    set_samples = set()
+    samples_list = list()
     min_num_class = 1
     total_num_class = 10
-    file_name = 'market_validation'
+    name = 'market'
+    data_path = './data'
+    plot_path = './plots/{}'.format(name)
 
     if (graphic == True):
-        path = './plots/market'
         try:
-            os.mkdir(path)
+            os.makedirs(plot_path)
         except OSError:
-            print ("Creation of the directory %s failed" % path)
+            print ("Creation of the directory %s failed" % plot_path)
         else: 
-            print ("Successfully created the directory %s " % path)
+            print ("Successfully created the directory %s " % plot_path)
 
-    while (len(set_samples) < amt_samples):
+    while (len(samples_list) < amt_samples):
         num_buyer = random.randint(min_num_class, total_num_class - min_num_class)
         num_seller = random.randint(min_num_class, total_num_class - num_buyer)
         market = random_market(num_buyer, num_seller, 0.5)
-        try:
-            buyer_nodes, seller_nodes = nx.algorithms.bipartite.sets(market)
-            set_samples.add((len(set_samples)+1, num_buyer + num_seller, len(market.edges), coupling_factor(market)))
+        
+        if not nx.is_weakly_connected(market):
+            continue
 
-            if (graphic == True):
-                plt.clf()
-                nx.draw_networkx(
-                market,
-                pos = nx.drawing.layout.bipartite_layout(market, buyer_nodes),
-                )
-                filename = 'plots/market/market-{}.png'.format(len(set_samples))
-                plt.savefig(filename)
-        except:
-            pass
+        check = True
+        for i in range(len(samples_list)):
+            if (nx.is_isomorphic(market, samples_list[i])):
+                check =  False
+                break
+        
+        if not check:
+            continue
+        samples_list.append(market)
+
+        if (graphic == True):
+            plt.clf()
+            buyer_nodes, _ = nx.algorithms.bipartite.sets(market)
+            nx.draw_networkx(
+            market,
+            pos = nx.drawing.layout.bipartite_layout(market, buyer_nodes),
+            )
+            filename = '{}/{}-{}.png'.format(plot_path, name,len(samples_list))
+            plt.savefig(filename)
     
-    with open('{}.csv'.format(file_name), 'w') as csvfile:
+    try:
+        os.mkdir(data_path)
+    except OSError:
+        print ("Creation of the directory %s failed" % data_path)
+    else: 
+        print ("Successfully created the directory %s " % data_path)
+    
+    with open('{}/{}.csv'.format(data_path, name), 'w') as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["num", "num_classes", "num_clients", "coupling_factor"])
-        [writer.writerow(list(r)) for r in set_samples]
+        [writer.writerow([i+1, len(samples_list[i].nodes), len(samples_list[i].edges), coupling_factor(samples_list[i])]) for i in range(len(samples_list))]
+  
 
 if __name__ == "__main__":
     main()
